@@ -1,0 +1,13 @@
+# Volume folders (ignored except .gitkeep)
+mysql_data/*
+!mysql_data/.gitkeep
+
+redis_data/*
+!redis_data/.gitkeep
+
+jenkins/*
+!jenkins/.gitkeep
+
+# Logs
+nginx/logs/
+.idea/
