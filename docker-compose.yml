@@ -28,24 +28,29 @@ services:
       - "80:80"
     volumes:
       - ../study:/var/www/study
+      - ../educa_crm:/var/www/crm1
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/logs:/var/log/nginx
     depends_on:
       - php-study
+      - php-crm1
     networks:
       - dev-net
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: .
+      dockerfile: ./jenkins/Dockerfile
     container_name: local-jenkins
     ports:
       - "8080:8080"
       - "50000:50000"
     volumes:
       - ./jenkins/jenkins_data:/var/jenkins_home
-      - ../study:/var/www/study
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - dev-net
     restart: unless-stopped
+    user: root
 
   #Project
   php-study:
@@ -59,6 +64,17 @@ services:
     depends_on:
       - mysql-80
       - redis
+    networks:
+      - dev-net
+
+  php-crm1:
+    build:
+      context: .
+      dockerfile: ./php-fpm/crm1/Dockerfile
+    container_name: php-crm1
+    working_dir: /var/www/crm1
+    volumes:
+      - ../educa_crm:/var/www/crm1
     networks:
       - dev-net
 
