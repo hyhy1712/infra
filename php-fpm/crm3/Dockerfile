@@ -13,9 +13,10 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     build-essential libssl-dev pkg-config bash \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql zip gd mbstring \
-    && pecl install mongodb-1.20.1 \
-    && docker-php-ext-enable mongodb
+    && docker-php-ext-install mysqli pdo pdo_mysql zip gd mbstring sockets \
+    && pecl install redis \
+    && docker-php-ext-enable redis
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY /php-fpm/crm3/custom.ini /usr/local/etc/php/conf.d/custom.ini
 
