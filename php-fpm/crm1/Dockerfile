@@ -22,5 +22,5 @@ RUN apt-get install -y \
     && pecl install mongodb-1.16.1 \
     && docker-php-ext-enable mongodb
 
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+COPY --from=composer:1.10.26 /usr/bin/composer /usr/bin/composer
 
