@@ -5,7 +5,7 @@ services:
     ports:
       - 3306:3306
     environment:
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: 123456
     volumes:
       - ../docker-data/mysql/80:/var/lib/mysql
     networks:
@@ -69,6 +69,8 @@ services:
       - redis
     networks:
       - dev-net
+    ports:
+      - "9001:9001"
   php-crm1:
     build:
       context: .
