@@ -1,0 +1,41 @@
+filebeat.inputs:
+  # Laravel logs
+  - type: filestream
+    id: laravel-logs
+    paths:
+      - /usr/share/filebeat/logs/php-study/laravel-*.log
+    parsers:
+      - multiline:
+          type: pattern
+          pattern: '^\[[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}\]'
+          negate: true
+          match: after
+    encoding: utf-8
+    fields:
+      kafka_topic: app-php-study-logs
+    fields_under_root: true
+#
+#  # Worker logs
+##  - type: filestream
+##    id: worker-logs
+##    paths:
+##      - /usr/share/filebeat/logs/**/worker.log
+##    parsers:
+##      - multiline:
+##          type: pattern
+##          pattern: '^\['
+##          negate: true
+##          match: after
+##    encoding: utf-8
+##    output.kafka:
+##      hosts: ["kafka:9092"]
+##      topic: "worker-logs"
+#
+#
+
+#output.console:
+#  pretty: true
+
+output.kafka:
+  hosts: ["kafka:9092"]
+  topic: "%{[kafka_topic]}"

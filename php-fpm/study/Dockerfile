@@ -1,6 +1,7 @@
 FROM php:8.3-fpm
 
 RUN apt-get update && apt-get install -y \
+    librdkafka-dev \
     git \
     unzip \
     zip \
@@ -8,7 +9,7 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     supervisor \
     && docker-php-ext-install pdo pdo_mysql zip mbstring \
-    && pecl install redis && docker-php-ext-enable redis
+    && pecl install redis rdkafka && docker-php-ext-enable redis rdkafka
 
 RUN mkdir -p /etc/supervisor/conf.d
 

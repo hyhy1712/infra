@@ -38,22 +38,94 @@ services:
       - php-crm3
     networks:
       - dev-net
-  jenkins:
-    build:
-      context: .
-      dockerfile: ./jenkins/Dockerfile
-    container_name: local-jenkins
+#  jenkins:
+#    build:
+#      context: .
+#      dockerfile: ./jenkins/Dockerfile
+#    ports:
+#      - "8080:8080"
+#      - "50000:50000"
+#    container_name: local-jenkins
+#    volumes:
+#      - ../docker-data/jenkins:/var/jenkins_home
+#      - /var/run/docker.sock:/var/run/docker.sock
+#      - /root/.ssh:/var/jenkins_home/.ssh:ro
+#    networks:
+#      - dev-net
+#    restart: unless-stopped
+#    user: root
+  kafka:
+    image: confluentinc/cp-kafka:7.9.0
+    container_name: local-kafka
+    restart: unless-stopped
     ports:
-      - "8080:8080"
-      - "50000:50000"
+      - "9094:9094"   # external port (host -> container)
+      - "9092:9092"   # optional mapping for internal listener (can be omitted)
+    environment:
+      # KRaft mode: chạy cả broker + controller
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+
+      # Controller quorum (1 node). Nếu mở rộng, liệt kê tất cả node
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+
+      # Listeners: INTERNAL cho container->container; EXTERNAL cho host->container; CONTROLLER cho KRaft
+      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:29093
+
+      # Advertised: what clients see in metadata
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+
+      # Map listener names to security protocols
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+
+      # Inter-broker should use internal listener
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # log dir
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+
+      # Cluster ID (tạo 1 lần và dùng cho cả cluster)
+      # Bạn có thể generate một UUID và đặt vào đây
+      KAFKA_CLUSTER_ID: 44ef235d-81dc-4872-bdc3-c593cf175785
+      CLUSTER_ID: 44ef235d-81dc-4872-bdc3-c593cf175785
     volumes:
-      - ../docker-data/jenkins:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.ssh:/var/jenkins_home/.ssh:ro
+      - ../docker-data/kafka:/var/lib/kafka/data
     networks:
       - dev-net
-    restart: unless-stopped
-    user: root
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: local-kafka-ui
+    ports:
+      - "8081:8080"
+    depends_on:
+      - kafka
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local-kafka
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    networks:
+      - dev-net
+#  fluent-bit:
+#    image: fluent/fluent-bit:2.2
+#    container_name: local-fluent-bit
+#    volumes:
+#      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+#      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
+#      - ./fluent-bit/parsers_multiline.conf:/fluent-bit/etc/parsers_multiline.conf
+#      - ../app-logs:/var/log/app-logs:ro
+#    depends_on:
+#      - kafka
+#    networks:
+#      - dev-net
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.13.4
+    container_name: local-filebeat
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ../docker-data/filebeat/registry:/usr/share/filebeat/data
+      - ../app-logs:/usr/share/filebeat/logs:ro
+    networks:
+      - dev-net
 
   #Project
   php-study:
@@ -64,6 +136,7 @@ services:
     working_dir: /var/www/study
     volumes:
       - ../study:/var/www/study
+      - ../app-logs/php-study:/var/www/study/storage/logs
     depends_on:
       - mysql-80
       - redis
