@@ -30,12 +30,14 @@ services:
       - ../study:/var/www/study
       - ../educa_crm:/var/www/crm1
       - ../bitrix:/var/www/crm3
+      - ../sale_portal:/var/www/sale-portal
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
       - ./nginx/logs:/var/log/nginx
     depends_on:
       - php-study
       - php-crm1
       - php-crm3
+      - php-sale-portal
     networks:
       - dev-net
 #  jenkins:
@@ -54,43 +56,61 @@ services:
 #      - dev-net
 #    restart: unless-stopped
 #    user: root
+#  kafka:
+#    image: confluentinc/cp-kafka:7.9.0
+#    container_name: local-kafka
+#    restart: unless-stopped
+#    ports:
+#      - "9094:9094"   # external port (host -> container)
+#      - "9092:9092"   # optional mapping for internal listener (can be omitted)
+#    environment:
+#      # KRaft mode: chạy cả broker + controller
+#      KAFKA_PROCESS_ROLES: broker,controller
+#      KAFKA_NODE_ID: 1
+#
+#      # Controller quorum (1 node). Nếu mở rộng, liệt kê tất cả node
+#      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+#
+#      # Listeners: INTERNAL cho container->container; EXTERNAL cho host->container; CONTROLLER cho KRaft
+#      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:29093
+#
+#      # Advertised: what clients see in metadata
+#      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
+#
+#      # Map listener names to security protocols
+#      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+#
+#      # Inter-broker should use internal listener
+#      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+#      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+#
+#      # log dir
+#      KAFKA_LOG_DIRS: /var/lib/kafka/data
+#
+#      # Cluster ID (tạo 1 lần và dùng cho cả cluster)
+#      # Bạn có thể generate một UUID và đặt vào đây
+#      KAFKA_CLUSTER_ID: 44ef235d-81dc-4872-bdc3-c593cf175785
+#      CLUSTER_ID: 44ef235d-81dc-4872-bdc3-c593cf175785
+#    volumes:
+#      - ../docker-data/kafka:/var/lib/kafka/data
+#    networks:
+#      - dev-net
+
   kafka:
-    image: confluentinc/cp-kafka:7.9.0
+    image: bitnami/kafka:3.6.1
     container_name: local-kafka
     restart: unless-stopped
-    ports:
-      - "9094:9094"   # external port (host -> container)
-      - "9092:9092"   # optional mapping for internal listener (can be omitted)
     environment:
-      # KRaft mode: chạy cả broker + controller
-      KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_NODE_ID: 1
-
-      # Controller quorum (1 node). Nếu mở rộng, liệt kê tất cả node
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
-
-      # Listeners: INTERNAL cho container->container; EXTERNAL cho host->container; CONTROLLER cho KRaft
-      KAFKA_LISTENERS: INTERNAL://:9092,EXTERNAL://:9094,CONTROLLER://:29093
-
-      # Advertised: what clients see in metadata
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:9094
-
-      # Map listener names to security protocols
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-
-      # Inter-broker should use internal listener
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-
-      # log dir
-      KAFKA_LOG_DIRS: /var/lib/kafka/data
-
-      # Cluster ID (tạo 1 lần và dùng cho cả cluster)
-      # Bạn có thể generate một UUID và đặt vào đây
-      KAFKA_CLUSTER_ID: 44ef235d-81dc-4872-bdc3-c593cf175785
-      CLUSTER_ID: 44ef235d-81dc-4872-bdc3-c593cf175785
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_KRAFT_CLUSTER_ID=RO8jXYHcSHK9w8WTzxdfgQ==
+      - ALLOW_PLAINTEXT_LISTENER=yes
     volumes:
-      - ../docker-data/kafka:/var/lib/kafka/data
+      - ../docker-data/kafka:/bitnami/kafka
     networks:
       - dev-net
   kafka-ui:
@@ -105,18 +125,15 @@ services:
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
     networks:
       - dev-net
-#  fluent-bit:
-#    image: fluent/fluent-bit:2.2
-#    container_name: local-fluent-bit
-#    volumes:
-#      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
-#      - ./fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
-#      - ./fluent-bit/parsers_multiline.conf:/fluent-bit/etc/parsers_multiline.conf
-#      - ../app-logs:/var/log/app-logs:ro
-#    depends_on:
-#      - kafka
-#    networks:
-#      - dev-net
+  fluent-bit:
+    image: fluent/fluent-bit:2.2
+    container_name: local-fluent-bit
+    volumes:
+      - ./fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+    depends_on:
+      - kafka
+    networks:
+      - dev-net
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.13.4
     container_name: local-filebeat
@@ -126,34 +143,54 @@ services:
       - ../app-logs:/usr/share/filebeat/logs:ro
     networks:
       - dev-net
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: local-elasticsearch
+    environment:
+      - node.name=es-node
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - xpack.security.enabled=false   # tắt authentication cho dev
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - ../docker-data/elk:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - dev-net
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: local-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+    depends_on:
+      - elasticsearch
+    networks:
+      - dev-net
+#  logstash:
+#    image: docker.elastic.co/logstash/logstash-oss:8.13.4
+#    container_name: local-logstash
+#    volumes:
+#      - ./logstash/pipeline/kafka.conf:/usr/share/logstash/pipeline/logstash.conf
+#    networks:
+#      - dev-net
+#    environment:
+#      #Java heap size,init and max = 512MB RAM
+#      - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
+#      - "LOG_LEVEL=debug"
+#    depends_on:
+#      - kafka
 
   #Project
-  php-study:
-    build:
-      context: .
-      dockerfile: ./php-fpm/study/Dockerfile
-    container_name: php-study
-    working_dir: /var/www/study
-    volumes:
-      - ../study:/var/www/study
-      - ../app-logs/php-study:/var/www/study/storage/logs
-    depends_on:
-      - mysql-80
-      - redis
-    networks:
-      - dev-net
-    ports:
-      - "9001:9001"
-  php-crm1:
-    build:
-      context: .
-      dockerfile: ./php-fpm/crm1/Dockerfile
-    container_name: php-crm1
-    working_dir: /var/www/crm1
-    volumes:
-      - ../educa_crm:/var/www/crm1
-    networks:
-      - dev-net
+
+
   php-crm3:
     build:
       context: .
@@ -162,6 +199,19 @@ services:
     working_dir: /var/www/crm3
     volumes:
       - ../bitrix:/var/www/crm3
+    networks:
+      - dev-net
+  php-sale-portal:
+    build:
+      context: .
+      dockerfile: ./php-fpm/sale-portal/Dockerfile
+    container_name: php-sale-portal
+    ports:
+      - "5173:5173"
+      - "8080:8080"
+    working_dir: /var/www/sale-portal
+    volumes:
+      - ../sale_portal:/var/www/sale-portal
     networks:
       - dev-net
 

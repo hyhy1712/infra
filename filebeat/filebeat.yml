@@ -4,6 +4,7 @@ filebeat.inputs:
     id: laravel-logs
     paths:
       - /usr/share/filebeat/logs/php-study/laravel-*.log
+    scan_frequency: 2s
     parsers:
       - multiline:
           type: pattern
