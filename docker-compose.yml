@@ -21,6 +21,18 @@ services:
     networks:
       - dev-net
     restart: unless-stopped
+  redis-ui:
+    image: rediscommander/redis-commander:latest
+    container_name: local-redis-ui
+    restart: always
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8082:8081"
+    depends_on:
+      - redis
+    networks:
+      - dev-net
   nginx:
     image: nginx:stable-alpine
     container_name: local-nginx
@@ -99,6 +111,8 @@ services:
   kafka:
     image: bitnami/kafka:3.6.1
     container_name: local-kafka
+    ports:
+      - "9092:9092"
     restart: unless-stopped
     environment:
       - KAFKA_CFG_NODE_ID=1
@@ -123,6 +137,8 @@ services:
     environment:
       - KAFKA_CLUSTERS_0_NAME=local-kafka
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_1_NAME=ai-service-kafka
+      - KAFKA_CLUSTERS_1_BOOTSTRAPSERVERS=172.16.7.238:9092
     networks:
       - dev-net
   fluent-bit:
@@ -189,8 +205,32 @@ services:
 #      - kafka
 
   #Project
-
-
+  php-study:
+    build:
+      context: .
+      dockerfile: ./php-fpm/study/Dockerfile
+    container_name: php-study
+    working_dir: /var/www/study
+    volumes:
+      - ../study:/var/www/study
+      - ../app-logs/php-study:/var/www/study/storage/logs
+    depends_on:
+      - mysql-80
+      - redis
+    networks:
+      - dev-net
+    ports:
+      - "9001:9001"
+  php-crm1:
+    build:
+      context: .
+      dockerfile: ./php-fpm/crm1/Dockerfile
+    container_name: php-crm1
+    working_dir: /var/www/crm1
+    volumes:
+      - ../educa_crm:/var/www/crm1
+    networks:
+      - dev-net
   php-crm3:
     build:
       context: .
