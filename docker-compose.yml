@@ -139,8 +139,6 @@ services:
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
       - KAFKA_CLUSTERS_1_NAME=ai-service-kafka-uat
       - KAFKA_CLUSTERS_1_BOOTSTRAPSERVERS=172.16.7.238:9092
-      - KAFKA_CLUSTERS_2_NAME=ai-service-kafka-prod
-      - KAFKA_CLUSTERS_2_BOOTSTRAPSERVERS=172.25.80.138:9092
     networks:
       - dev-net
   fluent-bit:
@@ -223,6 +221,7 @@ services:
       - dev-net
     ports:
       - "9001:9001"
+      - "5174:5174"
   php-crm1:
     build:
       context: .
