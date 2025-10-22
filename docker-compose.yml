@@ -112,14 +112,16 @@ services:
     image: bitnami/kafka:3.6.1
     container_name: local-kafka
     ports:
-      - "9092:9092"
+      - "9092:9092"     # Mở port ra cho host
+      - "9094:9094"     # Dùng riêng cho container nội bộ
     restart: unless-stopped
     environment:
       - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker #Node này vừa là controller, vừa là broker
       - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://0.0.0.0:9092,INTERNAL://0.0.0.0:9094,CONTROLLER://:9093 #Lắng nghe tất cả địa chỉ IP
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://172.17.141.157:9092,INTERNAL://kafka:9094 #Khai báo địa chỉ nào mà Kafka sẽ quảng cáo cho client kết nối vào.
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT # Map các listener với giao thức bảo mật, có nhiều listener thì cần khai báo đầy đủ nếu có 1 listener thì k cần vì mặc định kiểu là PLAINTEXT
       - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_KRAFT_CLUSTER_ID=RO8jXYHcSHK9w8WTzxdfgQ==
       - ALLOW_PLAINTEXT_LISTENER=yes
@@ -136,7 +138,7 @@ services:
       - kafka
     environment:
       - KAFKA_CLUSTERS_0_NAME=local-kafka
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9094
       - KAFKA_CLUSTERS_1_NAME=ai-service-kafka-uat
       - KAFKA_CLUSTERS_1_BOOTSTRAPSERVERS=172.16.7.238:9092
     networks:
